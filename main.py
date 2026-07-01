@@ -2,6 +2,8 @@ from merge_excel import merge_excel_files
 from remove_duplicates import remove_duplicates
 from csv_to_excel import csv_to_excel
 from excel_to_csv import excel_to_csv
+from split_excel import split_excel
+from statistics import excel_statistics
 
 def display_menu():
 
@@ -15,7 +17,9 @@ def display_menu():
         print("2. Remove Duplicate Rows")
         print("3. CSV to Excel")
         print("4. Excel to CSV")
-        print("5. Exit")
+        print("5. Split Excel File")
+        print("6. Excel Statistics")
+        print("7. Exit")
 
         choice = input("\nEnter your choice: ")
 
@@ -32,6 +36,12 @@ def display_menu():
             excel_to_csv()
 
         elif choice == "5":
+            split_excel()
+
+        elif choice == "6":
+            excel_statistics()
+
+        elif choice == "7":
             print("\nThank you for using Excel Automation Toolkit.")
             print("Goodbye!\n")
             break
