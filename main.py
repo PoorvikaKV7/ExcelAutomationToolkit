@@ -5,6 +5,8 @@ from excel_to_csv import excel_to_csv
 from split_excel import split_excel
 from statistics import excel_statistics
 from search_records import search_records
+from filter_records import filter_records
+
 def display_menu():
 
     while True:
@@ -20,7 +22,8 @@ def display_menu():
         print("5. Split Excel File")
         print("6. Excel Statistics")
         print("7. Search Records")
-        print("8. Exit")
+        print("8. Filter Records")
+        print("9. Exit")
 
         choice = input("\nEnter your choice: ")
 
@@ -46,6 +49,9 @@ def display_menu():
             search_records()
 
         elif choice == "8":
+            filter_records()
+
+        elif choice == "9":
             print("\nThank you for using Excel Automation Toolkit.")
             print("Goodbye!\n")
             break
