@@ -1,55 +1,99 @@
 import os
 import pandas as pd
 
+from config import INPUT_FOLDER, OUTPUT_FOLDER
 from utils import (
-    create_output_folder,
-    get_excel_files,
-    display_file_menu,
-    OUTPUT_FOLDER
+    print_header,
+    print_footer,
+    success,
+    error,
+    summary
 )
+from logger import log_info, log_error
 
 
 def excel_to_csv():
+    """
+    Convert Excel file(s) from input folder to CSV format.
+    """
 
-    create_output_folder()
+    excel_files = [
+        file for file in os.listdir(INPUT_FOLDER)
+        if file.endswith(".xlsx")
+    ]
 
-    excel_files = get_excel_files()
+    if not excel_files:
 
-    selected_files = display_file_menu(excel_files, "Excel")
-
-    if selected_files is None:
+        error("No Excel files found in the input folder.")
+        log_error("Excel to CSV failed: No Excel files found.")
         return
 
-    print("\nStarting conversion...\n")
+    print_header("Excel to CSV Converter")
 
-    converted = 0
+    print("\nAvailable Excel Files\n")
 
-    for file in selected_files:
+    for i, file in enumerate(excel_files, start=1):
+        print(f"{i}. {file}")
+
+    print("0. All Files")
+
+    while True:
 
         try:
 
-            filename = os.path.splitext(os.path.basename(file))[0]
+            choice = int(input("\nChoose file: "))
 
-            print(f"Converting: {filename}.xlsx")
+            if 0 <= choice <= len(excel_files):
+                break
 
-            df = pd.read_excel(file)
+            print("Invalid choice.")
 
-            output_file = os.path.join(OUTPUT_FOLDER, filename + ".csv")
+        except ValueError:
 
-            df.to_csv(output_file, index=False)
+            print("Please enter a valid integer.")
 
-            print("✓ Done\n")
+    if choice == 0:
+        selected_files = excel_files
+    else:
+        selected_files = [excel_files[choice - 1]]
+
+    converted = 0
+
+    for filename in selected_files:
+
+        input_path = os.path.join(INPUT_FOLDER, filename)
+
+        output_path = os.path.join(
+            OUTPUT_FOLDER,
+            filename.replace(".xlsx", ".csv")
+        )
+
+        try:
+
+            df = pd.read_excel(input_path)
+
+            df.to_csv(output_path, index=False)
+
+            print(f"\nConverted : {filename} → {os.path.basename(output_path)}")
 
             converted += 1
 
+            log_info(f"Converted {filename} to CSV")
+
         except Exception as e:
 
-            print(f"✗ Error converting {filename}.xlsx")
+            error(f"Failed to convert {filename}")
+
             print(e)
 
-    print("=" * 40)
-    print("Conversion Summary")
-    print("=" * 40)
-    print(f"Files Converted : {converted}")
-    print(f"Output Folder   : {OUTPUT_FOLDER}")
-    print("=" * 40)
+            log_error(f"{filename}: {e}")
+
+    print_header("Conversion Summary")
+
+    summary("Excel Files Found", len(excel_files))
+    summary("Files Converted", converted)
+    summary("Output Folder", OUTPUT_FOLDER)
+
+    print_footer()
+
+    success("Excel to CSV conversion completed successfully!")

@@ -6,6 +6,7 @@ from split_excel import split_excel
 from statistics import excel_statistics
 from search_records import search_records
 from filter_records import filter_records
+from format_excel import format_excel
 
 def display_menu():
 
@@ -23,7 +24,8 @@ def display_menu():
         print("6. Excel Statistics")
         print("7. Search Records")
         print("8. Filter Records")
-        print("9. Exit")
+        print("9. Format Excel File")
+        print("10. Exit")
 
         choice = input("\nEnter your choice: ")
 
@@ -52,6 +54,9 @@ def display_menu():
             filter_records()
 
         elif choice == "9":
+            format_excel()
+
+        elif choice == "10":
             print("\nThank you for using Excel Automation Toolkit.")
             print("Goodbye!\n")
             break
