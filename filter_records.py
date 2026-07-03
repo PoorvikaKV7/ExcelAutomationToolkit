@@ -2,157 +2,149 @@ import os
 from datetime import datetime
 import pandas as pd
 
-
-def print_line():
-    print("=" * 50)
+from config import INPUT_FOLDER, OUTPUT_FOLDER
+from utils import (
+    print_header,
+    print_footer,
+    success,
+    error,
+    summary,
+    get_integer,
+    get_float,
+    get_yes_no
+)
+from logger import log_info, log_error
 
 
 def filter_records():
 
-    input_folder = "input"
-    output_folder = "output"
-
-    os.makedirs(output_folder, exist_ok=True)
-
-    excel_files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
+    excel_files = [
+        file for file in os.listdir(INPUT_FOLDER)
+        if file.endswith(".xlsx")
+    ]
 
     if not excel_files:
-        print("\nNo Excel files found in the input folder.")
+        error("No Excel files found.")
+        log_error("Filter failed: No Excel files found.")
         return
 
-    print("\n========== Available Excel Files ==========\n")
+    print_header("Filter Records")
+
+    print("\nAvailable Excel Files\n")
 
     for i, file in enumerate(excel_files, start=1):
         print(f"{i}. {file}")
 
     while True:
-        try:
-            choice = int(input("\nChoose file number: "))
 
-            if 1 <= choice <= len(excel_files):
-                break
+        choice = get_integer("\nChoose file number: ")
 
-            print("Invalid choice. Please try again.")
+        if 1 <= choice <= len(excel_files):
+            break
 
-        except ValueError:
-            print("Please enter a valid integer.")
+        print("Invalid choice.")
 
     filename = excel_files[choice - 1]
-    filepath = os.path.join(input_folder, filename)
+
+    filepath = os.path.join(INPUT_FOLDER, filename)
 
     try:
+
         df = pd.read_excel(filepath)
 
     except Exception as e:
-        print(f"\nError reading file:\n{e}")
+
+        error("Unable to open Excel file.")
+        print(e)
+
+        log_error(str(e))
         return
 
-    columns = list(df.columns)
+    print("\nAvailable Columns\n")
 
-    print("\n========== Available Columns ==========\n")
-
-    for i, col in enumerate(columns, start=1):
-        print(f"{i}. {col}")
+    for i, column in enumerate(df.columns, start=1):
+        print(f"{i}. {column}")
 
     while True:
 
-        try:
+        col_choice = get_integer("\nChoose column number: ")
 
-            col_choice = int(input("\nChoose column number: "))
+        if 1 <= col_choice <= len(df.columns):
+            break
 
-            if 1 <= col_choice <= len(columns):
-                break
+        print("Invalid choice.")
 
-            print("Invalid column number.")
+    selected_column = df.columns[col_choice - 1]
 
-        except ValueError:
-            print("Please enter a valid integer.")
-
-    selected_column = columns[col_choice - 1]
-
-    # ============================================
-    # NUMERIC COLUMN
-    # ============================================
+    # ==================================================
+    # Numeric Filters
+    # ==================================================
 
     if pd.api.types.is_numeric_dtype(df[selected_column]):
 
-        print("\n========== Numeric Filters ==========")
-        print("1. Equal To")
+        print("\nNumeric Filters")
+        print("1. Equal")
         print("2. Greater Than")
         print("3. Less Than")
-        print("4. Greater Than or Equal To")
-        print("5. Less Than or Equal To")
+        print("4. Greater or Equal")
+        print("5. Less or Equal")
         print("6. Between")
 
         while True:
 
-            try:
+            operation = get_integer("\nChoose filter: ")
 
-                operation = int(input("\nChoose filter: "))
+            if 1 <= operation <= 6:
+                break
 
-                if 1 <= operation <= 6:
-                    break
-
-                print("Invalid choice.")
-
-            except ValueError:
-                print("Please enter a valid integer.")
+            print("Invalid choice.")
 
         if operation == 6:
 
-            while True:
-
-                try:
-                    low = float(input("Minimum Value : "))
-                    high = float(input("Maximum Value : "))
-
-                    if low > high:
-                        print("Minimum value cannot be greater than Maximum value.")
-                        continue
-
-                    break
-
-                except ValueError:
-                    print("Enter valid numeric values.")
+            low = get_float("Minimum Value : ")
+            high = get_float("Maximum Value : ")
 
             filtered = df[
                 (df[selected_column] >= low) &
                 (df[selected_column] <= high)
             ]
 
+            value_text = f"{low}-{high}"
+            operation_name = "Between"
+
         else:
 
-            while True:
-
-                try:
-                    value = float(input("Enter value : "))
-                    break
-
-                except ValueError:
-                    print("Enter a valid number.")
+            value = get_float("Enter value : ")
 
             if operation == 1:
                 filtered = df[df[selected_column] == value]
+                operation_name = "Equal"
 
             elif operation == 2:
                 filtered = df[df[selected_column] > value]
+                operation_name = "Greater Than"
 
             elif operation == 3:
                 filtered = df[df[selected_column] < value]
+                operation_name = "Less Than"
 
             elif operation == 4:
                 filtered = df[df[selected_column] >= value]
+                operation_name = "Greater or Equal"
 
-            elif operation == 5:
+            else:
                 filtered = df[df[selected_column] <= value]
+                operation_name = "Less or Equal"
 
-    # ============================================
-    # TEXT COLUMN
-    # ============================================
+            value_text = str(value)
+
+    # ==================================================
+    # Text Filters
+    # ==================================================
 
     else:
 
-        print("\n========== Text Filters ==========")
+        print("\nText Filters")
         print("1. Equals")
         print("2. Contains")
         print("3. Starts With")
@@ -160,194 +152,100 @@ def filter_records():
 
         while True:
 
-            try:
+            operation = get_integer("\nChoose filter: ")
 
-                operation = int(input("\nChoose filter: "))
+            if 1 <= operation <= 4:
+                break
 
-                if 1 <= operation <= 4:
-                    break
+            print("Invalid choice.")
 
-                print("Invalid choice.")
-
-            except ValueError:
-                print("Please enter a valid integer.")
-
-        value = input("Enter text: ").strip()
+        value = input("Enter text : ").strip()
 
         column = df[selected_column].astype(str)
 
         if operation == 1:
 
-            filtered = df[
-                column.str.lower() == value.lower()
-            ]
+            filtered = df[column.str.lower() == value.lower()]
+            operation_name = "Equals"
 
         elif operation == 2:
 
-            filtered = df[
-                column.str.contains(
-                    value,
-                    case=False,
-                    na=False
-                )
-            ]
+            filtered = df[column.str.contains(
+                value,
+                case=False,
+                na=False
+            )]
+            operation_name = "Contains"
 
         elif operation == 3:
 
-            filtered = df[
-                column.str.lower().str.startswith(
-                    value.lower()
-                )
-            ]
-
-        elif operation == 4:
-
-            filtered = df[
-                column.str.lower().str.endswith(
-                    value.lower()
-                )
-            ]
-
-    # ============================================
-    # NO RECORDS FOUND
-    # ============================================
-
-    if filtered.empty:
-
-        print_line()
-        print("No matching records found.")
-        print("-" * 50)
-        print(f"Column Searched : {selected_column}")
-
-        if pd.api.types.is_numeric_dtype(df[selected_column]):
-
-            operation_names = {
-                1: "Equal To",
-                2: "Greater Than",
-                3: "Less Than",
-                4: "Greater Than or Equal To",
-                5: "Less Than or Equal To",
-                6: "Between"
-            }
-
-            print(f"Filter Used     : {operation_names[operation]}")
-
-            if operation == 6:
-                print(f"Search Value    : {low} to {high}")
-            else:
-                print(f"Search Value    : {value}")
+            filtered = df[column.str.lower().str.startswith(value.lower())]
+            operation_name = "Starts With"
 
         else:
 
-            operation_names = {
-                1: "Equals",
-                2: "Contains",
-                3: "Starts With",
-                4: "Ends With"
-            }
+            filtered = df[column.str.lower().str.endswith(value.lower())]
+            operation_name = "Ends With"
 
-            print(f"Filter Used     : {operation_names[operation]}")
-            print(f"Search Value    : {value}")
+        value_text = value
 
-        print("\nPlease try another value.")
-        print_line()
+    # ==================================================
+    # No Results
+    # ==================================================
+
+    if filtered.empty:
+
+        error("No matching records found.")
+
+        summary("Column", selected_column)
+        summary("Filter", operation_name)
+        summary("Value", value_text)
+
+        log_info("Filter returned zero records.")
 
         return
 
-    # ============================================
-    # DISPLAY FILTERED DATA
-    # ============================================
+    # ==================================================
+    # Display Results
+    # ==================================================
 
-    print("\n========== Filtered Records ==========\n")
+    print_header("Filtered Records")
 
     print(filtered.to_string(index=False))
 
-    # ============================================
-    # GENERATE SMART FILE NAME
-    # ============================================
+    print_footer()
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    summary("Original Rows", len(df))
+    summary("Filtered Rows", len(filtered))
+    summary("Column", selected_column)
+    summary("Filter", operation_name)
+    summary("Value", value_text)
 
-    safe_column = selected_column.replace(" ", "_")
+    # ==================================================
+    # Save Results
+    # ==================================================
 
-    if pd.api.types.is_numeric_dtype(df[selected_column]):
-
-        operation_codes = {
-            1: "EQ",
-            2: "GT",
-            3: "LT",
-            4: "GE",
-            5: "LE",
-            6: "Between"
-        }
-
-    else:
-
-        operation_codes = {
-            1: "Equals",
-            2: "Contains",
-            3: "StartsWith",
-            4: "EndsWith"
-        }
-
-    op = operation_codes[operation]
-
-    if operation == 6:
-        value_text = f"{low}_{high}"
-    else:
-        value_text = str(value).replace(" ", "_")
-
-    output_file = os.path.join(
-        output_folder,
-        f"{safe_column}_{op}_{value_text}_{timestamp}.xlsx"
-    )
-
-    # ============================================
-    # SAVE OPTION
-    # ============================================
-
-    while True:
-
-        save = input("\nSave filtered records? (Y/N): ").strip().upper()
-
-        if save in ["Y", "N"]:
-            break
-
-        print("Please enter Y or N.")
+    save = get_yes_no("\nSave filtered results? (Y/N): ")
 
     if save == "Y":
 
-        try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            filtered.to_excel(output_file, index=False)
+        output_file = os.path.join(
+            OUTPUT_FOLDER,
+            f"Filtered_{timestamp}.xlsx"
+        )
 
-            print()
-            print_line()
-            print("          FILTER SUMMARY")
-            print_line()
+        filtered.to_excel(output_file, index=False)
 
-            print(f"Source File      : {filename}")
-            print(f"Column Filtered  : {selected_column}")
+        success("Filtered file saved successfully.")
 
-            if operation == 6:
-                search_text = f"{low} to {high}"
-            else:
-                search_text = value
+        summary("Output File", output_file)
 
-            print(f"Filter Value     : {search_text}")
-            print(f"Original Rows    : {len(df)}")
-            print(f"Filtered Rows    : {len(filtered)}")
-            print(f"Rows Removed     : {len(df) - len(filtered)}")
-            print(f"Output File      : {output_file}")
-
-            print_line()
-            print("Filter completed successfully!")
-            print_line()
-
-        except Exception as e:
-
-            print(f"\nError while saving file:\n{e}")
+        log_info(f"Filtered data saved to {output_file}")
 
     else:
 
         print("\nResults were not saved.")
+
+        log_info("Filtered results displayed only.")

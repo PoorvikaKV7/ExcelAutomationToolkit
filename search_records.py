@@ -1,113 +1,111 @@
 import os
 import pandas as pd
 
+from config import INPUT_FOLDER
+from utils import (
+    print_header,
+    print_footer,
+    success,
+    error,
+    summary,
+    get_integer
+)
+from logger import log_info, log_error
+
 
 def search_records():
-    input_folder = "input"
-    output_folder = "output"
 
-    # Get all Excel files
-    excel_files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
+    excel_files = [
+        file for file in os.listdir(INPUT_FOLDER)
+        if file.endswith(".xlsx")
+    ]
 
     if not excel_files:
-        print("No Excel files found.")
+        error("No Excel files found.")
+        log_error("Search failed: No Excel files found.")
         return
 
-    # Display files
-    print("\n========== Available Excel Files ==========\n")
+    print_header("Search Records")
+
+    print("\nAvailable Excel Files\n")
 
     for i, file in enumerate(excel_files, start=1):
         print(f"{i}. {file}")
 
-    # Select file
     while True:
-        try:
-            choice = int(input("\nEnter file number: "))
 
-            if 1 <= choice <= len(excel_files):
-                break
+        choice = get_integer("\nChoose file number: ")
 
-            print("Invalid choice.")
+        if 1 <= choice <= len(excel_files):
+            break
 
-        except ValueError:
-            print("Please enter a valid integer.")
+        print("Invalid choice.")
 
     filename = excel_files[choice - 1]
-    filepath = os.path.join(input_folder, filename)
+    filepath = os.path.join(INPUT_FOLDER, filename)
 
     try:
+
         df = pd.read_excel(filepath)
+
     except Exception as e:
-        print(f"Error reading file: {e}")
+
+        error("Unable to open Excel file.")
+        print(e)
+        log_error(str(e))
         return
 
-    # Display columns
-    print("\n========== Available Columns ==========\n")
+    print("\nAvailable Columns\n")
 
-    columns = list(df.columns)
-
-    for i, column in enumerate(columns, start=1):
+    for i, column in enumerate(df.columns, start=1):
         print(f"{i}. {column}")
 
-    # Select column
     while True:
-        try:
-            col_choice = int(input("\nChoose column number: "))
 
-            if 1 <= col_choice <= len(columns):
-                break
+        column_choice = get_integer("\nChoose column number: ")
 
-            print("Invalid column number.")
+        if 1 <= column_choice <= len(df.columns):
+            break
 
-        except ValueError:
-            print("Please enter a valid integer.")
+        print("Invalid choice.")
 
-    selected_column = columns[col_choice - 1]
+    selected_column = df.columns[column_choice - 1]
 
-    search_value = input(f"\nEnter value to search in '{selected_column}': ").strip()
+    search_value = input("\nEnter value to search: ").strip()
 
-    # Search
-    if pd.api.types.is_numeric_dtype(df[selected_column]):
-        try:
-            search_value = float(search_value)
-            results = df[df[selected_column] == search_value]
-        except ValueError:
-            print("Please enter a valid numeric value.")
-            return
-    else:
-        results = df[
-            df[selected_column]
-            .astype(str)
-            .str.contains(search_value, case=False, na=False)
-        ]
+    result = df[
+        df[selected_column]
+        .astype(str)
+        .str.contains(search_value, case=False, na=False)
+    ]
 
-    # No records found
-    if results.empty:
-        print("\nNo matching records found.")
-        return
+    print_header("Search Results")
 
-    # Display results
-    print("\n========== Search Results ==========\n")
-    print(results.to_string(index=False))
+    if result.empty:
 
-    print("\n===================================")
-    print(f"Records Found : {len(results)}")
-    print("===================================")
+        error("No matching records found.")
 
-    # Save results
-    save = input("\nDo you want to save the results? (Y/N): ").strip().upper()
+        summary("Column", selected_column)
+        summary("Search Value", search_value)
+        summary("Records Found", 0)
 
-    if save == "Y":
-
-        output_file = os.path.join(
-            output_folder,
-            f"Search_Results_{os.path.splitext(filename)[0]}.xlsx"
+        log_info(
+            f"No records found while searching '{search_value}' "
+            f"in column '{selected_column}'."
         )
 
-        results.to_excel(output_file, index=False)
+        return
 
-        print("\nSearch results saved successfully!")
-        print(f"Saved to: {output_file}")
+    print(result.to_string(index=False))
 
-    else:
-        print("\nSearch results were not saved.")
+    print_footer()
+
+    summary("Records Found", len(result))
+
+    success("Search completed successfully!")
+
+    log_info(
+        f"Search completed in '{selected_column}' "
+        f"for '{search_value}'. "
+        f"Records Found: {len(result)}"
+    )

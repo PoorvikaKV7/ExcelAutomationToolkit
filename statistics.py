@@ -1,154 +1,163 @@
 import os
 import pandas as pd
 
+from config import INPUT_FOLDER, OUTPUT_FOLDER
+from utils import (
+    print_header,
+    print_footer,
+    success,
+    error,
+    summary,
+    get_integer
+)
+from logger import log_info, log_error
+
 
 def excel_statistics():
-    input_folder = "input"
-    output_folder = "output"
 
-    # Get all Excel files
-    excel_files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx")]
+    excel_files = [
+        file for file in os.listdir(INPUT_FOLDER)
+        if file.endswith(".xlsx")
+    ]
 
     if not excel_files:
-        print("No Excel files found in the input folder.")
+        error("No Excel files found.")
+        log_error("Statistics failed: No Excel files found.")
         return
 
-    # Display available files
-    print("\n========== Available Excel Files ==========\n")
+    print_header("Excel Statistics")
+
+    print("\nAvailable Excel Files\n")
 
     for i, file in enumerate(excel_files, start=1):
         print(f"{i}. {file}")
 
-    # Get valid file choice
     while True:
-        try:
-            choice = int(input("\nEnter file number: "))
 
-            if 1 <= choice <= len(excel_files):
-                break
+        choice = get_integer("\nChoose file number: ")
 
-            print("Please choose a valid file number.\n")
+        if 1 <= choice <= len(excel_files):
+            break
 
-        except ValueError:
-            print("Please enter a valid integer.\n")
+        print("Invalid choice.")
 
     filename = excel_files[choice - 1]
-    filepath = os.path.join(input_folder, filename)
 
-    # Read Excel file
+    filepath = os.path.join(INPUT_FOLDER, filename)
+
     try:
+
         df = pd.read_excel(filepath)
+
     except Exception as e:
-        print(f"Error reading file: {e}")
+
+        error("Unable to read Excel file.")
+        print(e)
+
+        log_error(str(e))
         return
 
-    # Basic Statistics
-    total_rows = len(df)
-    total_columns = len(df.columns)
-    duplicate_rows = df.duplicated().sum()
-    missing_values = df.isnull().sum().sum()
+    print_header("Statistics Report")
 
-    # Missing values per column
-    missing_per_column = df.isnull().sum()
-
-    # Numeric columns
-    numeric_columns = df.select_dtypes(include="number")
-
-    # ---------------- Display Report ---------------- #
-
-    print("\n========== Excel Statistics ==========\n")
-
-    print(f"File Name       : {filename}")
-    print(f"Total Rows      : {total_rows}")
-    print(f"Total Columns   : {total_columns}")
-    print(f"Duplicate Rows  : {duplicate_rows}")
-    print(f"Missing Values  : {missing_values}")
+    summary("File Name", filename)
+    summary("Total Rows", len(df))
+    summary("Total Columns", len(df.columns))
+    summary("Duplicate Rows", df.duplicated().sum())
+    summary("Missing Values", df.isnull().sum().sum())
 
     print("\nColumns")
-    print("--------------------------------------")
+    print("-" * 40)
 
     for column in df.columns:
         print(column)
 
     print("\nData Types")
-    print("--------------------------------------")
+    print("-" * 40)
 
-    for column, dtype in df.dtypes.items():
-        print(f"{column:<20} {dtype}")
+    for column in df.columns:
+        print(f"{column:<20}{df[column].dtype}")
 
     print("\nMissing Values Per Column")
-    print("--------------------------------------")
+    print("-" * 40)
 
-    for column, count in missing_per_column.items():
-        print(f"{column:<20} {count}")
+    for column in df.columns:
+        print(f"{column:<20}{df[column].isnull().sum()}")
 
-    print("\nNumeric Statistics")
-    print("--------------------------------------")
+    numeric_columns = df.select_dtypes(include="number")
 
-    if numeric_columns.empty:
-        print("No numeric columns found.")
+    if not numeric_columns.empty:
 
-    else:
+        print("\nNumeric Statistics")
+        print("-" * 40)
+
         for column in numeric_columns.columns:
+
             print(f"\n{column}")
-            print("-" * 30)
+            print("-" * 20)
             print(f"Minimum : {numeric_columns[column].min()}")
             print(f"Maximum : {numeric_columns[column].max()}")
             print(f"Average : {numeric_columns[column].mean():.2f}")
             print(f"Median  : {numeric_columns[column].median():.2f}")
-
-    # ---------------- Save Report ---------------- #
+            print(f"Sum     : {numeric_columns[column].sum()}")
+            print(f"Unique  : {numeric_columns[column].nunique()}")
 
     report_file = os.path.join(
-        output_folder,
+        OUTPUT_FOLDER,
         f"{os.path.splitext(filename)[0]}_Statistics.txt"
     )
 
-    with open(report_file, "w") as file:
+    try:
 
-        file.write("========== Excel Statistics ==========\n\n")
+        with open(report_file, "w") as report:
 
-        file.write(f"File Name       : {filename}\n")
-        file.write(f"Total Rows      : {total_rows}\n")
-        file.write(f"Total Columns   : {total_columns}\n")
-        file.write(f"Duplicate Rows  : {duplicate_rows}\n")
-        file.write(f"Missing Values  : {missing_values}\n\n")
+            report.write("Excel Statistics Report\n")
+            report.write("=" * 40 + "\n\n")
 
-        file.write("Columns\n")
-        file.write("--------------------------------------\n")
+            report.write(f"File Name : {filename}\n")
+            report.write(f"Rows      : {len(df)}\n")
+            report.write(f"Columns   : {len(df.columns)}\n")
+            report.write(f"Duplicates: {df.duplicated().sum()}\n")
+            report.write(f"Missing   : {df.isnull().sum().sum()}\n\n")
 
-        for column in df.columns:
-            file.write(f"{column}\n")
+            report.write("Columns\n")
+            report.write("-" * 30 + "\n")
 
-        file.write("\nData Types\n")
-        file.write("--------------------------------------\n")
+            for column in df.columns:
+                report.write(f"{column}\n")
 
-        for column, dtype in df.dtypes.items():
-            file.write(f"{column:<20} {dtype}\n")
+            report.write("\nData Types\n")
+            report.write("-" * 30 + "\n")
 
-        file.write("\nMissing Values Per Column\n")
-        file.write("--------------------------------------\n")
+            for column in df.columns:
+                report.write(f"{column:<20}{df[column].dtype}\n")
 
-        for column, count in missing_per_column.items():
-            file.write(f"{column:<20} {count}\n")
+            if not numeric_columns.empty:
 
-        file.write("\nNumeric Statistics\n")
-        file.write("--------------------------------------\n")
+                report.write("\nNumeric Statistics\n")
+                report.write("-" * 30 + "\n")
 
-        if numeric_columns.empty:
-            file.write("No numeric columns found.\n")
+                for column in numeric_columns.columns:
 
-        else:
-            for column in numeric_columns.columns:
-                file.write(f"\n{column}\n")
-                file.write(f"Minimum : {numeric_columns[column].min()}\n")
-                file.write(f"Maximum : {numeric_columns[column].max()}\n")
-                file.write(f"Average : {numeric_columns[column].mean():.2f}\n")
-                file.write(f"Median  : {numeric_columns[column].median():.2f}\n")
+                    report.write(f"\n{column}\n")
+                    report.write(f"Minimum : {numeric_columns[column].min()}\n")
+                    report.write(f"Maximum : {numeric_columns[column].max()}\n")
+                    report.write(f"Average : {numeric_columns[column].mean():.2f}\n")
+                    report.write(f"Median  : {numeric_columns[column].median():.2f}\n")
+                    report.write(f"Sum     : {numeric_columns[column].sum()}\n")
+                    report.write(f"Unique  : {numeric_columns[column].nunique()}\n")
 
-    # ---------------- Success Message ---------------- #
+        print_footer()
 
-    print("\n======================================")
-    print("Statistics generated successfully!")
-    print(f"Report saved to: {report_file}")
-    print("======================================")
+        success("Statistics generated successfully!")
+
+        summary("Report Saved", report_file)
+
+        log_info(f"Statistics generated for {filename}")
+
+    except Exception as e:
+
+        error("Unable to save report.")
+
+        print(e)
+
+        log_error(str(e))
